@@ -16,6 +16,24 @@ game.style.width = `${window_width}px`;
 game.style.height = `${window_height}px`;
 ctx.scale(scale, scale);
 
+// ========== Game Variables ==========
+const plane = {
+  x: window_width / 2,
+  y: window_height - 100,
+  width: 70,
+  height: 120,
+  speed: 30,
+  bullets: [],
+};
+
+let enemies = [];
+let start_game = false;
+let auto_shoot = false;
+let can_shoot = true;
+let score = 0;
+let generated_plane = 0;
+const keys = {};
+
 // ============== Load plane image once ===========
 const plane_image = new Image();
 plane_image.src = "./assets/fighter.svg";
@@ -32,61 +50,95 @@ enemie_plane_image.onload = () => {
 };
 
 // ============= load audio sounds ============
-const shootSound = new Audio("./assets/sounds/laser_sound.wav");
+const shoot_sound = new Audio("./assets/sounds/laser_sound.wav");
+const destroyed_sound = new Audio("./assets/sounds/explotion_sound.wav");
+const bg_music = new Audio("./assets/sounds/bg_music.mp3");
+bg_music.loop = true;
+bg_music.volume = 1;
 
-const bgMusic = new Audio("./assets/sounds/bg_music.mp3");
-bgMusic.loop = true; // Loop the music
-bgMusic.volume = 1;
-
-function startMusic() {
-  bgMusic.play().catch((err) => console.error("Music playback blocked:", err));
+function start_music() {
+  bg_music.play().catch((err) => console.error("Music playback blocked:", err));
+  start_game = true;
 }
 
 function destroyed_enemie_plane() {
-  const destroyed_sound = new Audio("./assets/sounds/explotion_sound.wav");
   destroyed_sound.currentTime = 0;
   destroyed_sound.play();
 }
 
-// ========== Game Variables and Functions ==========
-const plane = {
-  x: window_width / 2,
-  y: window_height - 180,
-  width: 70,
-  height: 120,
-  speed: 30,
-  bullets: [],
-};
+// ========== Input Handling ==========
 
-let my_plane = null;
-let enemies = [];
-let start_game = false;
-let score = 0;
-let generated_plane = 0;
-let auto_shoot = false;
-const keys = {};
+game_over.addEventListener("click", () => {
+  window.location.reload();
+});
+
+document.addEventListener("keydown", start_music, { once: true });
+
+document.addEventListener("touchstart", start_music, { once: true });
+
+document.addEventListener("keydown", (e) => {
+  keys[e.key] = true;
+  if (e.key === " " && can_shoot && !game_Over()) {
+    can_shoot = false;
+    setTimeout(() => (can_shoot = true), 500);
+    assult_fire();
+  }
+});
+
+document.addEventListener("keyup", (e) => {
+  keys[e.key] = false;
+});
+
+game.addEventListener(
+  "touchmove",
+  (e) => {
+    e.preventDefault();
+    const game_container = game.getBoundingClientRect();
+    const touch = e.touches[0].clientX - game_container.left;
+    plane.x = touch - plane.width / 2;
+  },
+  { passive: false }
+);
+
+game.addEventListener(
+  "touchstart",
+  (e) => {
+    e.preventDefault();
+    auto_shoot = true;
+    start_game = true;
+  },
+  { passive: false }
+);
+
+window.addEventListener("resize", () => {
+  location.reload();
+});
 
 // ========== Game Logic ==========
+
+// show high score from localhost
+const high_score = localStorage.getItem("highest_score");
+display[1].textContent = `Previous Destroyed : ${high_score || 0}`;
 
 // shoot bullet
 function shoot_bullet() {
   //play shoot sound
-  shootSound.currentTime = 0;
-  shootSound.play();
+  shoot_sound.currentTime = 0;
+  shoot_sound.play();
 
   //add bullets on screen
   plane.bullets.push({
     x: plane.x + plane.width / 2 - 2.5,
     y: plane.y,
-    width: 6,
-    height: 20,
+    width: 4,
+    height: 10,
   });
 }
 
 function assult_fire() {
-  setTimeout(() => shoot_bullet(), 100);
-  setTimeout(() => shoot_bullet(), 300);
-  setTimeout(() => shoot_bullet(), 500);
+  setTimeout(() => shoot_bullet(), 50);
+  setTimeout(() => shoot_bullet(), 200);
+  setTimeout(() => shoot_bullet(), 450);
 }
 
 // game Over
@@ -119,10 +171,10 @@ function generate_random_enemie_plane() {
 
   enemies.push({
     x: random_position(),
-    y: -100,
+    y: -70,
     width: 80,
     height: 120,
-    speed: 6,
+    speed: Math.ceil(Math.random() * 10),
     bullets: [],
   });
 
@@ -199,52 +251,6 @@ function draw_game() {
   });
 }
 
-// ========== Input Handling ==========
-
-game_over.addEventListener("click", () => {
-  window.location.reload();
-});
-
-document.addEventListener("keydown", startMusic, { once: true });
-
-// document.addEventListener("touchstart", startMusic, { once: true });
-
-document.addEventListener("keydown", (e) => (keys[e.key] = true));
-
-document.addEventListener("keyup", (e) => {
-  keys[e.key] = false;
-
-  if (e.key) {
-    start_game = true;
-  }
-
-  // Fire bullet on space key release
-  if (e.key === " ") {
-    assult_fire();
-  }
-});
-
-game.addEventListener(
-  "touchmove",
-  (e) => {
-    e.preventDefault();
-    const game_container = game.getBoundingClientRect();
-    const touch = e.touches[0].clientX - game_container.left;
-    plane.x = touch - plane.width / 2;
-  },
-  { passive: false }
-);
-
-game.addEventListener(
-  "touchstart",
-  (e) => {
-    e.preventDefault();
-    auto_shoot = true;
-    start_game = true;
-  },
-  { passive: false }
-);
-
 // ========== Game Loop ==========
 
 // auto shoot
@@ -258,6 +264,7 @@ setInterval(() => {
 setInterval(() => {
   if (game_Over()) {
     start_game = false;
+    auto_shoot = false;
     return;
   }
 
@@ -266,10 +273,7 @@ setInterval(() => {
     return;
   }
   return;
-}, 1500);
-
-const high_score = localStorage.getItem("highest_score");
-display[1].textContent = `Previous Destroyed : ${high_score || 0}`;
+}, 2000);
 
 function main() {
   display[0].textContent = `Destroyed : ${score}`;
